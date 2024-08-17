@@ -56,7 +56,6 @@
     "@types/react-dom": "^16.9.8",
     "ajv": "^8.17.1",
     "bun": "^1.1.24",
-    "eslint": "^9.9.0",
     "only-allow": "^1.2.1",
     "prettier": "^3.3.3",
     "react-scripts": "^5.0.1",
