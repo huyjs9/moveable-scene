@@ -2,27 +2,12 @@
   "name": "moveable",
   "version": "0.1.0",
   "private": true,
-  "devDependencies": {
-    "@testing-library/jest-dom": "^4.2.4",
-    "@testing-library/react": "^9.5.0",
-    "@testing-library/user-event": "^7.2.1",
-    "@types/jest": "^24.9.1",
-    "@types/node": "^12.12.47",
-    "@types/react": "^16.9.38",
-    "@types/react-dom": "^16.9.8",
-    "gh-pages": "^6.1.1",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "react-scripts": "^5.0.1",
-    "typescript": "^3.7.5"
-  },
-  "homepage": ".",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "deploy": "gh-pages -d ./build --dest=./"
+    "prettier": "prettier --check \"**/*.{js,jsx,ts,tsx}\"",
+    "prettier:fix": "prettier --write \"**/*.{js,jsx,ts,tsx}\"",
+    "preinstall": "npx only-allow bun"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -45,11 +30,10 @@
     "@egjs/component": "^2.1.2",
     "@egjs/list-differ": "^1.0.0",
     "@scena/react-guides": "^0.9.0",
-    "@types/html2canvas": "0.0.35",
-    "@types/react-color": "^3.0.4",
     "framework-utils": "^0.3.4",
     "html2canvas": "^1.0.0-rc.5",
     "keycon": "^0.8.0",
+    "lodash": "^4.17.21",
     "moveable-helper": "^0.2.0",
     "react": "16.13.1",
     "react-color": "^2.18.1",
@@ -57,8 +41,29 @@
     "react-infinite-viewer": "^0.6.0",
     "react-moveable": "^0.21.6",
     "react-selecto": "^1.5.2",
-    "scenejs": "^1.2.0"
+    "scenejs": "^1.10.3"
   },
-  "keywords": [],
-  "description": ""
+  "devDependencies": {
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.5.0",
+    "@testing-library/user-event": "^7.2.1",
+    "@types/html2canvas": "0.0.35",
+    "@types/jest": "^24.9.1",
+    "@types/lodash": "^4.17.7",
+    "@types/node": "^12.12.47",
+    "@types/react": "^16.9.38",
+    "@types/react-color": "^3.0.4",
+    "@types/react-dom": "^16.9.8",
+    "ajv": "^8.17.1",
+    "bun": "^1.1.24",
+    "eslint": "^9.9.0",
+    "only-allow": "^1.2.1",
+    "prettier": "^3.3.3",
+    "react-scripts": "^5.0.1",
+    "typescript": "^3.7.5"
+  },
+  "engines": {
+    "node": ">=16.0.0 <17.0.0"
+  },
+  "packageManager": "bun@1.1.2"
 }

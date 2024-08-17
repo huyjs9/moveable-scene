@@ -1,14 +1,10 @@
-import * as React from "react";
-import InfiniteViewer from "react-infinite-viewer";
-import Guides from "@scena/react-guides";
-import Selecto, { Rect } from "react-selecto";
-import "./Editor.css";
-import Menu from "./Menu/Menu";
-import Viewport, {
-  ElementInfo,
-  MovedInfo,
-  MovedResult
-} from "./Viewport/Viewport";
+import * as React from 'react'
+import InfiniteViewer, { OnDragStart as OnDragStartIV } from 'react-infinite-viewer'
+import Guides from '@scena/react-guides'
+import Selecto, { OnDragStart, OnScroll, OnSelectEnd, Rect } from 'react-selecto'
+import './Editor.css'
+import Menu from './Menu/Menu'
+import Viewport, { ElementInfo, MovedInfo, MovedResult } from './Viewport/Viewport'
 import {
   getContentElement,
   prefix,
@@ -16,147 +12,127 @@ import {
   checkImageLoaded,
   checkInput,
   getParnetScenaElement,
-  getScenaAttrs
-} from "./utils/utils";
-import Tabs from "./Tabs/Tabs";
-import EventBus from "./utils/EventBus";
-import { IObject } from "@daybrush/utils";
-import Memory from "./utils/Memory";
-import MoveableManager from "./Viewport/MoveableMananger";
-import MoveableData from "./utils/MoveableData";
-import KeyManager from "./KeyManager/KeyManager";
-import { ScenaEditorState, SavedScenaData, ScenaJSXElement } from "./types";
-import HistoryManager from "./utils/HistoryManager";
-import Debugger from "./utils/Debugger";
-import { isMacintosh, DATA_SCENA_ELEMENT_ID } from "./consts";
-import ClipboardManager from "./utils/ClipboardManager";
-import { NameType } from "scenejs";
+  getScenaAttrs,
+} from './utils/utils'
+import Tabs from './Tabs/Tabs'
+import EventBus from './utils/EventBus'
+import { IObject } from '@daybrush/utils'
+import Memory from './utils/Memory'
+import MoveableManager from './Viewport/MoveableMananger'
+import MoveableData from './utils/MoveableData'
+import KeyManager from './KeyManager/KeyManager'
+import { ScenaEditorState, SavedScenaData, ScenaJSXElement } from './types'
+import HistoryManager from './utils/HistoryManager'
+import Debugger from './utils/Debugger'
+import { isMacintosh, DATA_SCENA_ELEMENT_ID } from './consts'
+import ClipboardManager from './utils/ClipboardManager'
+import { NameType } from 'scenejs'
 
-function undoCreateElements(
-  { infos, prevSelected }: IObject<any>,
-  editor: Editor
-) {
+function undoCreateElements({ infos, prevSelected }: IObject<any>, editor: Editor) {
   const res = editor.removeByIds(
     infos.map((info: ElementInfo) => info.id),
     true
-  );
+  )
 
   if (prevSelected) {
     res.then(() => {
-      editor.setSelectedTargets(
-        editor.getViewport().getElements(prevSelected),
-        true
-      );
-    });
+      editor.setSelectedTargets(editor.getViewport().getElements(prevSelected), true)
+    })
   }
 }
 function restoreElements({ infos }: IObject<any>, editor: Editor) {
   editor.appendJSXs(
     infos.map((info: ElementInfo) => ({
-      ...info
+      ...info,
     })),
     true
-  );
+  )
 }
 function undoSelectTargets({ prevs, nexts }: IObject<any>, editor: Editor) {
-  editor.setSelectedTargets(editor.viewport.current!.getElements(prevs), true);
+  editor.setSelectedTargets(editor.viewport.current!.getElements(prevs), true)
 }
 function redoSelectTargets({ prevs, nexts }: IObject<any>, editor: Editor) {
-  editor.setSelectedTargets(editor.viewport.current!.getElements(nexts), true);
+  editor.setSelectedTargets(editor.viewport.current!.getElements(nexts), true)
 }
 function undoChangeText({ prev, next, id }: IObject<any>, editor: Editor) {
-  const info = editor.getViewport().getInfo(id)!;
-  info.innerText = prev;
-  info.el!.innerText = prev;
+  const info = editor.getViewport().getInfo(id)!
+  info.innerText = prev
+  info.el!.innerText = prev
 }
 function redoChangeText({ prev, next, id }: IObject<any>, editor: Editor) {
-  const info = editor.getViewport().getInfo(id)!;
-  info.innerText = next;
-  info.el!.innerText = next;
+  const info = editor.getViewport().getInfo(id)!
+  info.innerText = next
+  info.el!.innerText = next
 }
 function undoMove({ prevInfos }: MovedResult, editor: Editor) {
-  editor.moves(prevInfos, true);
+  editor.moves(prevInfos, true)
 }
 function redoMove({ nextInfos }: MovedResult, editor: Editor) {
-  editor.moves(nextInfos, true);
+  editor.moves(nextInfos, true)
 }
 export default class Editor extends React.PureComponent<
   {
-    width: number;
-    height: number;
-    debug?: boolean;
+    width: number
+    height: number
+    debug?: boolean
   },
   Partial<ScenaEditorState>
 > {
   public static defaultProps = {
     width: 400,
-    height: 600
-  };
+    height: 600,
+  }
   public state: ScenaEditorState = {
     selectedTargets: [],
     horizontalGuides: [],
     verticalGuides: [],
     zoom: 1,
-    selectedMenu: "MoveTool"
-  };
-  public historyManager = new HistoryManager(this);
-  public console = new Debugger(this.props.debug);
-  public eventBus = new EventBus();
-  public memory = new Memory();
-  public moveableData = new MoveableData(this.memory);
-  public keyManager = new KeyManager(this.console);
-  public clipboardManager = new ClipboardManager(this);
+    selectedMenu: 'MoveTool',
+  }
+  public historyManager = new HistoryManager(this)
+  public console = new Debugger(this.props.debug)
+  public eventBus = new EventBus()
+  public memory = new Memory()
+  public moveableData = new MoveableData(this.memory)
+  public keyManager = new KeyManager(this.console)
+  public clipboardManager = new ClipboardManager(this)
 
-  public horizontalGuides = React.createRef<Guides>();
-  public verticalGuides = React.createRef<Guides>();
-  public infiniteViewer = React.createRef<InfiniteViewer>();
-  public selecto = React.createRef<Selecto>();
-  public menu = React.createRef<Menu>();
-  public moveableManager = React.createRef<MoveableManager>();
-  public viewport = React.createRef<Viewport>();
-  public tabs = React.createRef<Tabs>();
-  public editorElement = React.createRef<HTMLDivElement>();
+  public horizontalGuides = React.createRef<Guides>()
+  public verticalGuides = React.createRef<Guides>()
+  public infiniteViewer = React.createRef<InfiniteViewer>()
+  public selecto = React.createRef<Selecto>()
+  public menu = React.createRef<Menu>()
+  public moveableManager = React.createRef<MoveableManager>()
+  public viewport = React.createRef<Viewport>()
+  public tabs = React.createRef<Tabs>()
+  public editorElement = React.createRef<HTMLDivElement>()
 
   public render() {
-    const {
-      horizontalGuides,
-      verticalGuides,
-      infiniteViewer,
-      moveableManager,
-      viewport,
-      menu,
-      tabs,
-      selecto,
-      state
-    } = this;
-    const { selectedMenu, selectedTargets, zoom } = state;
-    const { width, height } = this.props;
-    const horizontalSnapGuides = [
-      0,
-      height,
-      height / 2,
-      ...state.horizontalGuides
-    ];
-    const verticalSnapGuides = [0, width, width / 2, ...state.verticalGuides];
-    let unit = 50;
+    const { horizontalGuides, verticalGuides, infiniteViewer, moveableManager, viewport, menu, tabs, selecto, state } =
+      this
+    const { selectedMenu, selectedTargets, zoom } = state
+    const { width, height } = this.props
+    const horizontalSnapGuides = [0, height, height / 2, ...state.horizontalGuides]
+    const verticalSnapGuides = [0, width, width / 2, ...state.verticalGuides]
+    let unit = 50
 
     if (zoom < 0.8) {
-      unit = Math.floor(1 / zoom) * 50;
+      unit = Math.floor(1 / zoom) * 50
     }
     return (
-      <div className={prefix("editor")} ref={this.editorElement}>
+      <div className={prefix('editor')} ref={this.editorElement}>
         <Tabs ref={tabs} editor={this}></Tabs>
         <Menu ref={menu} editor={this} onSelect={this.onMenuChange} />
         <div
-          className={prefix("reset")}
+          className={prefix('reset')}
           onClick={(e) => {
-            infiniteViewer.current!.scrollCenter();
+            infiniteViewer.current!.scrollCenter()
           }}
         ></div>
         <Guides
           ref={horizontalGuides}
           type="horizontal"
-          className={prefix("guides", "horizontal")}
+          className={prefix('guides', 'horizontal')}
           style={{}}
           snapThreshold={5}
           snaps={horizontalSnapGuides}
@@ -166,14 +142,14 @@ export default class Editor extends React.PureComponent<
           unit={unit}
           onChangeGuides={(e) => {
             this.setState({
-              horizontalGuides: e.guides
-            });
+              horizontalGuides: e.guides,
+            })
           }}
         ></Guides>
         <Guides
           ref={verticalGuides}
           type="vertical"
-          className={prefix("guides", "vertical")}
+          className={prefix('guides', 'vertical')}
           style={{}}
           snapThreshold={5}
           snaps={verticalSnapGuides}
@@ -183,49 +159,47 @@ export default class Editor extends React.PureComponent<
           unit={unit}
           onChangeGuides={(e) => {
             this.setState({
-              verticalGuides: e.guides
-            });
+              verticalGuides: e.guides,
+            })
           }}
         ></Guides>
         <InfiniteViewer
           ref={infiniteViewer}
-          className={prefix("viewer")}
+          className={prefix('viewer')}
           usePinch={true}
           pinchThreshold={50}
           zoom={zoom}
-          onDragStart={(e) => {
-            const target = e.inputEvent.target;
-            this.checkBlur();
+          onDragStart={(e: OnDragStartIV) => {
+            const target = e.inputEvent.target
+            this.checkBlur()
 
             if (
-              target.nodeName === "A" ||
-              moveableManager
-                .current!.getMoveable()
-                .isMoveableElement(target) ||
+              target.nodeName === 'A' ||
+              moveableManager.current!.getMoveable().isMoveableElement(target) ||
               selectedTargets.some((t) => t === target || t.contains(target))
             ) {
-              e.stop();
+              e.stop()
             }
           }}
           onDragEnd={(e) => {
             if (!e.isDrag) {
-              selecto.current!.clickTarget(e.inputEvent);
+              selecto.current!.clickTarget(e.inputEvent)
             }
           }}
           onAbortPinch={(e) => {
-            selecto.current!.triggerDragStart(e.inputEvent);
+            selecto.current!.triggerDragStart(e.inputEvent)
           }}
           onScroll={(e) => {
-            horizontalGuides.current!.scroll(e.scrollLeft);
-            horizontalGuides.current!.scrollGuides(e.scrollTop);
+            horizontalGuides.current!.scroll(e.scrollLeft)
+            horizontalGuides.current!.scrollGuides(e.scrollTop)
 
-            verticalGuides.current!.scroll(e.scrollTop);
-            verticalGuides.current!.scrollGuides(e.scrollLeft);
+            verticalGuides.current!.scroll(e.scrollTop)
+            verticalGuides.current!.scrollGuides(e.scrollLeft)
           }}
           onPinch={(e) => {
             this.setState({
-              zoom: e.zoom
-            });
+              zoom: e.zoom,
+            })
           }}
         >
           <Viewport
@@ -233,7 +207,7 @@ export default class Editor extends React.PureComponent<
             onBlur={this.onBlur}
             style={{
               width: `${width}px`,
-              height: `${height}px`
+              height: `${height}px`,
             }}
           >
             <MoveableManager
@@ -248,12 +222,12 @@ export default class Editor extends React.PureComponent<
         </InfiniteViewer>
         <Selecto
           ref={selecto}
-          dragContainer={".scena-viewer"}
+          dragContainer={'.scena-viewer'}
           hitRate={0}
           selectableTargets={[`.scena-viewport [${DATA_SCENA_ELEMENT_ID}]`]}
           selectByClick={true}
           selectFromInside={false}
-          toggleContinueSelect={["shift"]}
+          toggleContinueSelect={['shift']}
           preventDefault={true}
           scrollOptions={
             infiniteViewer.current
@@ -262,635 +236,559 @@ export default class Editor extends React.PureComponent<
                   threshold: 30,
                   throttleTime: 30,
                   getScrollPosition: () => {
-                    const current = infiniteViewer.current!;
-                    return [current.getScrollLeft(), current.getScrollTop()];
-                  }
+                    const current = infiniteViewer.current!
+                    return [current.getScrollLeft(), current.getScrollTop()]
+                  },
                 }
               : undefined
           }
-          onDragStart={(e) => {
-            const inputEvent = e.inputEvent;
-            const target = inputEvent.target;
+          onDragStart={(e: OnDragStart) => {
+            const inputEvent = e.inputEvent
+            const target = inputEvent.target
 
-            this.checkBlur();
-            if (selectedMenu === "Text" && target.isContentEditable) {
-              const contentElement = getContentElement(target);
+            this.checkBlur()
+            if (selectedMenu === 'Text' && target.isContentEditable) {
+              const contentElement = getContentElement(target)
 
-              if (
-                contentElement &&
-                contentElement.hasAttribute(DATA_SCENA_ELEMENT_ID)
-              ) {
-                e.stop();
-                this.setSelectedTargets([contentElement]);
+              if (contentElement && contentElement.hasAttribute(DATA_SCENA_ELEMENT_ID)) {
+                e.stop()
+                this.setSelectedTargets([contentElement])
               }
             }
             if (
-              (inputEvent.type === "touchstart" && e.isTrusted) ||
-              moveableManager
-                .current!.getMoveable()
-                .isMoveableElement(target) ||
-              state.selectedTargets.some(
-                (t) => t === target || t.contains(target)
-              )
+              (inputEvent.type === 'touchstart' && e.isTrusted) ||
+              moveableManager.current!.getMoveable().isMoveableElement(target) ||
+              state.selectedTargets.some((t) => t === target || t.contains(target))
             ) {
-              e.stop();
+              e.stop()
             }
           }}
-          onScroll={({ direction }) => {
-            infiniteViewer.current!.scrollBy(
-              direction[0] * 10,
-              direction[1] * 10
-            );
+          onScroll={({ direction }: OnScroll) => {
+            infiniteViewer.current!.scrollBy(direction[0] * 10, direction[1] * 10)
           }}
-          onSelectEnd={({ isDragStart, selected, inputEvent, rect }) => {
+          onSelectEnd={({ isDragStart, selected, inputEvent, rect }: OnSelectEnd) => {
             if (isDragStart) {
-              inputEvent.preventDefault();
+              inputEvent.preventDefault()
             }
             if (this.selectEndMaker(rect)) {
-              return;
+              return
             }
             this.setSelectedTargets(selected).then(() => {
               if (!isDragStart) {
-                return;
+                return
               }
-              moveableManager.current!.getMoveable().dragStart(inputEvent);
-            });
+              moveableManager.current!.getMoveable().dragStart(inputEvent)
+            })
           }}
         ></Selecto>
       </div>
-    );
+    )
   }
   public componentDidMount() {
-    const { infiniteViewer, memory, eventBus } = this;
-    memory.set("background-color", "#4af");
-    memory.set("color", "#333");
+    const { infiniteViewer, memory, eventBus } = this
+    memory.set('background-color', '#4af')
+    memory.set('color', '#333')
 
     requestAnimationFrame(() => {
-      infiniteViewer.current!.scrollCenter();
-    });
-    window.addEventListener("resize", this.onResize);
-    const viewport = this.getViewport();
+      infiniteViewer.current!.scrollCenter()
+    })
+    window.addEventListener('resize', this.onResize)
+    const viewport = this.getViewport()
 
-    eventBus.on("blur", () => {
-      this.menu.current!.blur();
-      this.tabs.current!.blur();
-    });
-    eventBus.on("selectLayers", (e: any) => {
-      const selected = e.selected as string[];
+    eventBus.on('blur', () => {
+      this.menu.current!.blur()
+      this.tabs.current!.blur()
+    })
+    eventBus.on('selectLayers', (e: any) => {
+      const selected = e.selected as string[]
 
-      this.setSelectedTargets(
-        selected.map((key) => viewport.getInfo(key)!.el!)
-      );
-    });
-    eventBus.on("update", () => {
-      this.forceUpdate();
-    });
+      this.setSelectedTargets(selected.map((key) => viewport.getInfo(key)!.el!))
+    })
+    eventBus.on('update', () => {
+      this.forceUpdate()
+    })
 
     this.keyManager.keydown(
-      ["left"],
+      ['left'],
       (e) => {
-        this.move(-10, 0);
-        e.inputEvent.preventDefault();
+        this.move(-10, 0)
+        e.inputEvent.preventDefault()
       },
-      "Move Left"
-    );
+      'Move Left'
+    )
     this.keyManager.keydown(
-      ["up"],
+      ['up'],
       (e) => {
-        this.move(0, -10);
-        e.inputEvent.preventDefault();
+        this.move(0, -10)
+        e.inputEvent.preventDefault()
       },
-      "Move Up"
-    );
+      'Move Up'
+    )
     this.keyManager.keydown(
-      ["right"],
+      ['right'],
       (e) => {
-        this.move(10, 0);
-        e.inputEvent.preventDefault();
+        this.move(10, 0)
+        e.inputEvent.preventDefault()
       },
-      "Move Right"
-    );
+      'Move Right'
+    )
     this.keyManager.keydown(
-      ["down"],
+      ['down'],
       (e) => {
-        this.move(0, 10);
-        e.inputEvent.preventDefault();
+        this.move(0, 10)
+        e.inputEvent.preventDefault()
       },
-      "Move Down"
-    );
+      'Move Down'
+    )
     this.keyManager.keyup(
-      ["backspace"],
+      ['backspace'],
       () => {
-        this.removeElements(this.getSelectedTargets());
+        this.removeElements(this.getSelectedTargets())
       },
-      "Delete"
-    );
-    this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "x"],
-      () => {},
-      "Cut"
-    );
-    this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "c"],
-      () => {},
-      "Copy"
-    );
+      'Delete'
+    )
+    this.keyManager.keydown([isMacintosh ? 'meta' : 'ctrl', 'x'], () => {}, 'Cut')
+    this.keyManager.keydown([isMacintosh ? 'meta' : 'ctrl', 'c'], () => {}, 'Copy')
     // this.keyManager.keydown([isMacintosh ? "meta" : "ctrl", "shift", "c"], e => {
     //     this.clipboardManager.copyImage();
     //     e.inputEvent.preventDefault();
     // }, "Copy to Image");
+    this.keyManager.keydown([isMacintosh ? 'meta' : 'ctrl', 'v'], () => {}, 'Paste')
     this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "v"],
-      () => {},
-      "Paste"
-    );
-    this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "z"],
+      [isMacintosh ? 'meta' : 'ctrl', 'z'],
       () => {
-        this.historyManager.undo();
+        this.historyManager.undo()
       },
-      "Undo"
-    );
+      'Undo'
+    )
     this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "shift", "z"],
+      [isMacintosh ? 'meta' : 'ctrl', 'shift', 'z'],
       () => {
-        this.historyManager.redo();
+        this.historyManager.redo()
       },
-      "Redo"
-    );
+      'Redo'
+    )
     this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "a"],
+      [isMacintosh ? 'meta' : 'ctrl', 'a'],
       (e) => {
-        this.setSelectedTargets(
-          this.getViewportInfos().map((info) => info.el!)
-        );
-        e.inputEvent.preventDefault();
+        this.setSelectedTargets(this.getViewportInfos().map((info) => info.el!))
+        e.inputEvent.preventDefault()
       },
-      "Select All"
-    );
+      'Select All'
+    )
     this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "alt", "g"],
+      [isMacintosh ? 'meta' : 'ctrl', 'alt', 'g'],
       (e) => {
-        e.inputEvent.preventDefault();
-        this.moveInside();
+        e.inputEvent.preventDefault()
+        this.moveInside()
       },
-      "Move Inside"
-    );
+      'Move Inside'
+    )
     this.keyManager.keydown(
-      [isMacintosh ? "meta" : "ctrl", "shift", "alt", "g"],
+      [isMacintosh ? 'meta' : 'ctrl', 'shift', 'alt', 'g'],
       (e) => {
-        e.inputEvent.preventDefault();
-        this.moveOutside();
+        e.inputEvent.preventDefault()
+        this.moveOutside()
       },
-      "Move Outside"
-    );
-    this.historyManager.registerType(
-      "createElements",
-      undoCreateElements,
-      restoreElements
-    );
-    this.historyManager.registerType(
-      "removeElements",
-      restoreElements,
-      undoCreateElements
-    );
-    this.historyManager.registerType(
-      "selectTargets",
-      undoSelectTargets,
-      redoSelectTargets
-    );
-    this.historyManager.registerType(
-      "changeText",
-      undoChangeText,
-      redoChangeText
-    );
-    this.historyManager.registerType("move", undoMove, redoMove);
+      'Move Outside'
+    )
+    this.historyManager.registerType('createElements', undoCreateElements, restoreElements)
+    this.historyManager.registerType('removeElements', restoreElements, undoCreateElements)
+    this.historyManager.registerType('selectTargets', undoSelectTargets, redoSelectTargets)
+    this.historyManager.registerType('changeText', undoChangeText, redoChangeText)
+    this.historyManager.registerType('move', undoMove, redoMove)
   }
   public componentWillUnmount() {
-    this.eventBus.off();
-    this.memory.clear();
-    this.moveableData.clear();
-    this.keyManager.destroy();
-    this.clipboardManager.destroy();
-    window.removeEventListener("resize", this.onResize);
+    this.eventBus.off()
+    this.memory.clear()
+    this.moveableData.clear()
+    this.keyManager.destroy()
+    this.clipboardManager.destroy()
+    window.removeEventListener('resize', this.onResize)
   }
   public promiseState(state: Partial<ScenaEditorState>) {
     return new Promise((resolve) => {
       this.setState(state, () => {
-        resolve();
-      });
-    });
+        resolve(state)
+      })
+    })
   }
   public getSelectedTargets() {
-    return this.state.selectedTargets;
+    return this.state.selectedTargets
   }
-  public setSelectedTargets(
-    targets: Array<HTMLElement | SVGElement>,
-    isRestore?: boolean
-  ) {
+  public setSelectedTargets(targets: Array<HTMLElement | SVGElement>, isRestore?: boolean) {
     targets = targets.filter((target) => {
       return targets.every((parnetTarget) => {
-        return parnetTarget === target || !parnetTarget.contains(target);
-      });
-    });
+        return parnetTarget === target || !parnetTarget.contains(target)
+      })
+    })
 
     return this.promiseState({
-      selectedTargets: targets
+      selectedTargets: targets,
     }).then(() => {
       if (!isRestore) {
-        const prevs = getIds(this.moveableData.getSelectedTargets());
-        const nexts = getIds(targets);
+        const prevs = getIds(this.moveableData.getSelectedTargets())
+        const nexts = getIds(targets)
 
-        if (
-          prevs.length !== nexts.length ||
-          !prevs.every((prev, i) => nexts[i] === prev)
-        ) {
-          this.historyManager.addAction("selectTargets", { prevs, nexts });
+        if (prevs.length !== nexts.length || !prevs.every((prev, i) => nexts[i] === prev)) {
+          this.historyManager.addAction('selectTargets', { prevs, nexts })
         }
       }
-      this.selecto.current!.setSelectedTargets(targets);
-      this.moveableData.setSelectedTargets(targets);
-      this.eventBus.trigger("setSelectedTargets");
+      this.selecto.current!.setSelectedTargets(targets)
+      this.moveableData.setSelectedTargets(targets)
+      this.eventBus.trigger('setSelectedTargets')
 
-      return targets;
-    });
+      return targets
+    })
   }
   public appendJSX(info: ElementInfo) {
-    return this.appendJSXs([info]).then((targets) => targets[0]);
+    return this.appendJSXs([info]).then((targets) => targets[0])
   }
 
-  public appendJSXs(
-    jsxs: ElementInfo[],
-    isRestore?: boolean
-  ): Promise<Array<HTMLElement | SVGElement>> {
-    const viewport = this.getViewport();
-    const indexesList = viewport.getSortedIndexesList(
-      this.getSelectedTargets()
-    );
-    const indexesListLength = indexesList.length;
-    let appendIndex = -1;
-    let scopeId: string = "";
+  public appendJSXs(jsxs: ElementInfo[], isRestore?: boolean): Promise<Array<HTMLElement | SVGElement>> {
+    const viewport = this.getViewport()
+    const indexesList = viewport.getSortedIndexesList(this.getSelectedTargets())
+    const indexesListLength = indexesList.length
+    let appendIndex = -1
+    let scopeId: string = ''
 
     if (!isRestore && indexesListLength) {
-      const indexes = indexesList[indexesListLength - 1];
+      const indexes = indexesList[indexesListLength - 1]
 
-      const info = viewport.getInfoByIndexes(indexes);
+      const info = viewport.getInfoByIndexes(indexes)
 
-      scopeId = info.scopeId!;
-      appendIndex = indexes[indexes.length - 1] + 1;
+      scopeId = info.scopeId!
+      appendIndex = indexes[indexes.length - 1] + 1
     }
 
-    this.console.log("append jsxs", jsxs, appendIndex, scopeId);
+    this.console.log('append jsxs', jsxs, appendIndex, scopeId)
 
     return this.getViewport()
       .appendJSXs(jsxs, appendIndex, scopeId)
       .then(({ added }) => {
-        return this.appendComplete(added, isRestore);
-      });
+        return this.appendComplete(added, isRestore)
+      })
   }
   public appendComplete(infos: ElementInfo[], isRestore?: boolean) {
     !isRestore &&
-      this.historyManager.addAction("createElements", {
+      this.historyManager.addAction('createElements', {
         infos,
-        prevSelected: getIds(this.getSelectedTargets())
-      });
-    const data = this.moveableData;
+        prevSelected: getIds(this.getSelectedTargets()),
+      })
+    const data = this.moveableData
     const targets = infos
       .map(function registerFrame(info) {
-        data.createFrame(info.el!, info.frame);
-        data.render(info.el!);
+        data.createFrame(info.el!, info.frame)
+        data.render(info.el!)
 
-        info.children!.forEach(registerFrame);
-        return info.el!;
+        info.children!.forEach(registerFrame)
+        return info.el!
       })
-      .filter((el) => el);
+      .filter((el) => el)
 
-    return Promise.all(targets.map((target) => checkImageLoaded(target))).then(
-      () => {
-        this.setSelectedTargets(targets, true);
+    return Promise.all(targets.map((target) => checkImageLoaded(target))).then(() => {
+      this.setSelectedTargets(targets, true)
 
-        return targets;
-      }
-    );
+      return targets
+    })
   }
   public removeByIds(ids: string[], isRestore?: boolean) {
-    return this.removeElements(this.getViewport().getElements(ids), isRestore);
+    return this.removeElements(this.getViewport().getElements(ids), isRestore)
   }
   public getMoveable() {
-    return this.moveableManager.current!.getMoveable();
+    return this.moveableManager.current!.getMoveable()
   }
   public removeFrames(targets: Array<HTMLElement | SVGElement>) {
-    const frameMap: IObject<any> = {};
-    const moveableData = this.moveableData;
-    const viewport = this.getViewport();
+    const frameMap: IObject<any> = {}
+    const moveableData = this.moveableData
+    const viewport = this.getViewport()
 
     targets.forEach(function removeFrame(target) {
-      const info = viewport.getInfoByElement(target)!;
+      const info = viewport.getInfoByElement(target)!
 
-      frameMap[info.id!] = moveableData.getFrame(target).get();
-      moveableData.removeFrame(target);
+      frameMap[info.id!] = moveableData.getFrame(target).get()
+      moveableData.removeFrame(target)
 
       info.children!.forEach((childInfo) => {
-        removeFrame(childInfo.el!);
-      });
-    });
+        removeFrame(childInfo.el!)
+      })
+    })
 
-    return frameMap;
+    return frameMap
   }
   public restoreFrames(infos: ElementInfo[], frameMap: IObject<any>) {
-    const viewport = this.getViewport();
-    const moveableData = this.moveableData;
+    const viewport = this.getViewport()
+    const moveableData = this.moveableData
 
     infos.forEach(function registerFrame(info) {
-      info.frame = frameMap[info.id!];
-      delete frameMap[info.id!];
+      info.frame = frameMap[info.id!]
+      delete frameMap[info.id!]
 
-      info.children!.forEach(registerFrame);
-    });
+      info.children!.forEach(registerFrame)
+    })
     for (const id in frameMap) {
-      moveableData.createFrame(viewport.getInfo(id).el!, frameMap[id]);
+      moveableData.createFrame(viewport.getInfo(id).el!, frameMap[id])
     }
   }
-  public removeElements(
-    targets: Array<HTMLElement | SVGElement>,
-    isRestore?: boolean
-  ) {
-    const viewport = this.getViewport();
-    const frameMap = this.removeFrames(targets);
-    const indexesList = viewport.getSortedIndexesList(targets);
-    const indexesListLength = indexesList.length;
-    let scopeId = "";
-    let selectedInfo: ElementInfo | null = null;
+  public removeElements(targets: Array<HTMLElement | SVGElement>, isRestore?: boolean) {
+    const viewport = this.getViewport()
+    const frameMap = this.removeFrames(targets)
+    const indexesList = viewport.getSortedIndexesList(targets)
+    const indexesListLength = indexesList.length
+    let scopeId = ''
+    let selectedInfo: ElementInfo | null = null
 
     if (indexesListLength) {
-      const lastInfo = viewport.getInfoByIndexes(
-        indexesList[indexesListLength - 1]
-      );
-      const nextInfo = viewport.getNextInfo(lastInfo.id!);
+      const lastInfo = viewport.getInfoByIndexes(indexesList[indexesListLength - 1])
+      const nextInfo = viewport.getNextInfo(lastInfo.id!)
 
-      scopeId = lastInfo.scopeId!;
-      selectedInfo = nextInfo;
+      scopeId = lastInfo.scopeId!
+      selectedInfo = nextInfo
     }
     // return;
     return viewport.removeTargets(targets).then(({ removed }) => {
-      let selectedTarget =
-        selectedInfo ||
-        viewport.getLastChildInfo(scopeId)! ||
-        viewport.getInfo(scopeId);
+      let selectedTarget = selectedInfo || viewport.getLastChildInfo(scopeId)! || viewport.getInfo(scopeId)
 
-      this.setSelectedTargets(
-        selectedTarget && selectedTarget.el ? [selectedTarget.el!] : [],
-        true
-      );
+      this.setSelectedTargets(selectedTarget && selectedTarget.el ? [selectedTarget.el!] : [], true)
 
-      this.console.log("removeTargets", removed);
+      this.console.log('removeTargets', removed)
       !isRestore &&
-        this.historyManager.addAction("removeElements", {
-          infos: removed.map(function removeTarget(
-            info: ElementInfo
-          ): ElementInfo {
+        this.historyManager.addAction('removeElements', {
+          infos: removed.map(function removeTarget(info: ElementInfo): ElementInfo {
             return {
               ...info,
               children: info.children!.map(removeTarget),
-              frame: frameMap[info.id!] || info.frame
-            };
-          })
-        });
-      return targets;
-    });
+              frame: frameMap[info.id!] || info.frame,
+            }
+          }),
+        })
+      return targets
+    })
   }
   public setProperty(scope: string[], value: any, isUpdate?: boolean) {
-    const infos = this.moveableData.setProperty(scope, value);
+    const infos = this.moveableData.setProperty(scope, value)
 
-    this.historyManager.addAction("renders", { infos });
+    this.historyManager.addAction('renders', { infos })
 
     if (isUpdate) {
-      this.moveableManager.current!.updateRect();
+      this.moveableManager.current!.updateRect()
     }
-    this.eventBus.requestTrigger("render");
+    this.eventBus.requestTrigger('render')
   }
   public setOrders(scope: string[], orders: NameType[], isUpdate?: boolean) {
-    const infos = this.moveableData.setOrders(scope, orders);
+    const infos = this.moveableData.setOrders(scope, orders)
 
-    this.historyManager.addAction("renders", { infos });
+    this.historyManager.addAction('renders', { infos })
 
     if (isUpdate) {
-      this.moveableManager.current!.updateRect();
+      this.moveableManager.current!.updateRect()
     }
-    this.eventBus.requestTrigger("render");
+    this.eventBus.requestTrigger('render')
   }
   public selectMenu(menu: string) {
-    this.menu.current!.select(menu);
+    this.menu.current!.select(menu)
   }
   public loadDatas(datas: SavedScenaData[]) {
-    const viewport = this.getViewport();
+    const viewport = this.getViewport()
     return this.appendJSXs(
       datas
         .map(function loadData(data): any {
-          const { componentId, jsxId, children } = data;
+          const { componentId, jsxId, children } = data
 
-          let jsx!: ScenaJSXElement;
+          let jsx!: ScenaJSXElement
 
           if (jsxId) {
-            jsx = viewport.getJSX(jsxId);
+            jsx = viewport.getJSX(jsxId)
           }
           if (!jsx && componentId) {
-            const Component = viewport.getComponent(componentId);
+            const Component = viewport.getComponent(componentId)
 
-            jsx = <Component />;
+            jsx = <Component />
           }
           if (!jsx) {
-            jsx = React.createElement(data.tagName);
+            jsx = React.createElement(data.tagName)
           }
           return {
             ...data,
             children: children.map(loadData),
-            jsx
-          };
+            jsx,
+          }
         })
         .filter((info) => info) as ElementInfo[]
-    );
+    )
   }
-  public saveTargets(
-    targets: Array<HTMLElement | SVGElement>
-  ): SavedScenaData[] {
-    const viewport = this.getViewport();
-    const moveableData = this.moveableData;
-    this.console.log("save targets", targets);
+  public saveTargets(targets: Array<HTMLElement | SVGElement>): SavedScenaData[] {
+    const viewport = this.getViewport()
+    const moveableData = this.moveableData
+    this.console.log('save targets', targets)
     return targets
       .map((target) => viewport.getInfoByElement(target))
       .map(function saveTarget(info): SavedScenaData {
-        const target = info.el!;
-        const isContentEditable = info.attrs!.contenteditable;
+        const target = info.el!
+        const isContentEditable = info.attrs!.contenteditable
         return {
           name: info.name,
           attrs: getScenaAttrs(target),
-          jsxId: info.jsxId || "",
+          jsxId: info.jsxId || '',
           componentId: info.componentId!,
-          innerHTML: isContentEditable ? "" : target.innerHTML,
-          innerText: isContentEditable ? (target as HTMLElement).innerText : "",
+          innerHTML: isContentEditable ? '' : target.innerHTML,
+          innerText: isContentEditable ? (target as HTMLElement).innerText : '',
           tagName: target.tagName.toLowerCase(),
           frame: moveableData.getFrame(target).get(),
-          children: info.children!.map(saveTarget)
-        };
-      });
+          children: info.children!.map(saveTarget),
+        }
+      })
   }
   public getViewport() {
-    return this.viewport.current!;
+    return this.viewport.current!
   }
   public getViewportInfos() {
-    return this.getViewport().getViewportInfos();
+    return this.getViewport().getViewportInfos()
   }
   public appendBlob(blob: Blob) {
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob)
 
     return this.appendJSX({
       jsx: <img src={url} alt="appended blob" />,
-      name: "(Image)"
-    });
+      name: '(Image)',
+    })
   }
   public moves(movedInfos: MovedInfo[], isRestore?: boolean) {
-    const frameMap = this.removeFrames(movedInfos.map(({ info }) => info.el!));
+    const frameMap = this.removeFrames(movedInfos.map(({ info }) => info.el!))
 
     return this.getViewport()
       .moves(movedInfos)
-      .then((result) => this.moveComplete(result, frameMap, isRestore));
+      .then((result) => this.moveComplete(result, frameMap, isRestore))
   }
 
   private onMenuChange = (id: string) => {
     this.setState({
-      selectedMenu: id
-    });
-  };
+      selectedMenu: id,
+    })
+  }
   private selectEndMaker(rect: Rect) {
-    const infiniteViewer = this.infiniteViewer.current!;
-    const selectIcon = this.menu.current!.getSelected();
-    const width = rect.width;
-    const height = rect.height;
+    const infiniteViewer = this.infiniteViewer.current!
+    const selectIcon = this.menu.current!.getSelected()
+    const width = rect.width
+    const height = rect.height
 
     if (!selectIcon || !selectIcon.maker || !width || !height) {
-      return false;
+      return false
     }
-    const maker = selectIcon.maker(this.memory);
-    const scrollTop = -infiniteViewer.getScrollTop() + 30;
-    const scrollLeft = -infiniteViewer.getScrollLeft() + 75;
-    const top = rect.top - scrollTop;
-    const left = rect.left - scrollLeft;
+    const maker = selectIcon.maker(this.memory)
+    const scrollTop = -infiniteViewer.getScrollTop() + 30
+    const scrollLeft = -infiniteViewer.getScrollLeft() + 75
+    const top = rect.top - scrollTop
+    const left = rect.left - scrollLeft
 
     const style = {
       top: `${top}px`,
       left: `${left}px`,
-      position: "absolute",
+      position: 'absolute',
       width: `${width}px`,
       height: `${height}px`,
-      ...maker.style
-    } as any;
+      ...maker.style,
+    } as any
     this.appendJSX({
       jsx: maker.tag,
       attrs: maker.attrs,
       name: `(${selectIcon.id})`,
-      frame: style
-    }).then(selectIcon.makeThen);
-    return true;
+      frame: style,
+    }).then(selectIcon.makeThen)
+    return true
   }
   private move(deltaX: number, deltaY: number) {
-    this.getMoveable().request("draggable", { deltaX, deltaY }, true);
+    this.getMoveable().request('draggable', { deltaX, deltaY }, true)
   }
   private checkBlur() {
-    const activeElement = document.activeElement;
+    const activeElement = document.activeElement
     if (activeElement) {
-      (activeElement as HTMLElement).blur();
+      ;(activeElement as HTMLElement).blur()
     }
-    const selection = document.getSelection()!;
+    const selection = document.getSelection()!
 
     if (selection) {
-      selection.removeAllRanges();
+      selection.removeAllRanges()
     }
-    this.eventBus.trigger("blur");
+    this.eventBus.trigger('blur')
   }
   private onResize = () => {
-    this.horizontalGuides.current!.resize();
-    this.verticalGuides.current!.resize();
-  };
+    this.horizontalGuides.current!.resize()
+    this.verticalGuides.current!.resize()
+  }
   private onBlur = (e: any) => {
-    const target = e.target as HTMLElement | SVGElement;
+    const target = e.target as HTMLElement | SVGElement
 
     if (!checkInput(target)) {
-      return;
+      return
     }
-    const parentTarget = getParnetScenaElement(target);
+    const parentTarget = getParnetScenaElement(target)
 
     if (!parentTarget) {
-      return;
+      return
     }
-    const info = this.getViewport().getInfoByElement(parentTarget)!;
+    const info = this.getViewport().getInfoByElement(parentTarget)!
 
     if (!info.attrs!.contenteditable) {
-      return;
+      return
     }
-    const nextText = (parentTarget as HTMLElement).innerText;
+    const nextText = (parentTarget as HTMLElement).innerText
 
     if (info.innerText === nextText) {
-      return;
+      return
     }
-    this.historyManager.addAction("changeText", {
+    this.historyManager.addAction('changeText', {
       id: info.id,
       prev: info.innerText,
-      next: nextText
-    });
-    info.innerText = nextText;
-  };
+      next: nextText,
+    })
+    info.innerText = nextText
+  }
   private moveInside() {
-    let targets = this.getSelectedTargets();
+    let targets = this.getSelectedTargets()
 
-    const length = targets.length;
+    const length = targets.length
     if (length !== 1) {
-      return;
+      return
     }
-    targets = [targets[0]];
+    targets = [targets[0]]
 
-    const viewport = this.getViewport();
-    const frameMap = this.removeFrames(targets);
+    const viewport = this.getViewport()
+    const frameMap = this.removeFrames(targets)
 
-    return viewport
-      .moveInside(targets[0])
-      .then((result) => this.moveComplete(result, frameMap));
+    return viewport.moveInside(targets[0]).then((result) => this.moveComplete(result, frameMap))
   }
   private moveOutside() {
-    let targets = this.getSelectedTargets();
+    let targets = this.getSelectedTargets()
 
-    const length = targets.length;
+    const length = targets.length
     if (length !== 1) {
-      return;
+      return
     }
-    targets = [targets[0]];
+    targets = [targets[0]]
 
-    const frameMap = this.removeFrames(targets);
+    const frameMap = this.removeFrames(targets)
     this.getViewport()
       .moveOutside(targets[0])
-      .then((result) => this.moveComplete(result, frameMap));
+      .then((result) => this.moveComplete(result, frameMap))
   }
-  private moveComplete(
-    result: MovedResult,
-    frameMap: IObject<any>,
-    isRestore?: boolean
-  ) {
-    this.console.log("Move", result);
+  private moveComplete(result: MovedResult, frameMap: IObject<any>, isRestore?: boolean) {
+    this.console.log('Move', result)
 
-    const { moved, prevInfos, nextInfos } = result;
-    this.restoreFrames(moved, frameMap);
+    const { moved, prevInfos, nextInfos } = result
+    this.restoreFrames(moved, frameMap)
 
     if (moved.length) {
       if (!isRestore) {
-        this.historyManager.addAction("move", {
+        this.historyManager.addAction('move', {
           prevInfos,
-          nextInfos
-        });
+          nextInfos,
+        })
       }
       // move complete
-      this.appendComplete(moved, true);
+      this.appendComplete(moved, true)
     }
 
-    return result;
+    return result
   }
 }
